@@ -1,0 +1,17 @@
+version: '3'
+services:
+  build:
+    image: golang:1.13-stretch
+    working_dir: /build
+    volumes:
+      - .:/build
+    command: [make, clean, all]
+
+  release:
+    image: golang:1.13-stretch
+    working_dir: /build
+    volumes:
+      - .:/build
+    command: [make, release]
+    environment:
+      - AWS_REGION=ap-northeast-1
