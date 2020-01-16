@@ -8,6 +8,15 @@ SSM Vault can be used to store credentials in AWS and retrieve them for developm
 
 - [Usage](USAGE.md)
 
+## Installation
+
+Use Homebrew on macOS.  See "[Installation](USAGE.md#installation)" for other environments.
+
+```
+$ brew tap k24d/ssm-vault
+$ brew install ssm-vault
+```
+
 ## Basic Usage
 
 ```bash

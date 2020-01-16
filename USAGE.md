@@ -1,5 +1,6 @@
 # Usage
 
+- [Installation](#installation)
 - [Configuration](#configuration)
   - [Using aws-vault for development](#using-aws-vault-for-development)
 - [Listing parameters](#listing-parameters)
@@ -13,6 +14,26 @@
 - [Rendering template](#rendering-template)
 - [Running command with environment variables](#running-command-with-environment-variables)
   - [Overwrite environment variables](#overwrite-environment-variables)
+
+## Installation
+
+### Homebrew (macOS)
+
+```
+$ brew tap k24d/ssm-vault
+$ brew install ssm-vault
+```
+
+### Pre-compiled binaries (darwin, freebsd, linux, and windows)
+
+- https://github.com/k24d/ssm-vault/releases
+
+### Build from source
+
+```
+$ VERSION=`git describe --tags --candidates=1 --dirty`
+$ go build -ldflags="-X main.Version=$VERSION -s -w" -trimpath -o ssm-vault
+```
 
 ## Configuration
 
