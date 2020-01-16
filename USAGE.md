@@ -305,7 +305,7 @@ EOT
 
 ## Running command with environment variables
 
-> :warning: This command should be used with extra care.  There is plenty of discussion about storing secrets in environment variables, like "[Environment Variables Considered Harmful for Your Secrets - Hacker News](https://news.ycombinator.com/item?id=8826024).  On the other hand, having secrets in environment variables is sometimes convenient, especially when you run Docker containers for development.  It's up to you whether or not to use this feature.
+> :warning: This command should be used with extra care.  There is plenty of discussion about storing secrets in environment variables, like "[Environment Variables Considered Harmful for Your Secrets - Hacker News](https://news.ycombinator.com/item?id=8826024)".  On the other hand, having secrets in environment variables is sometimes convenient, especially when you run Docker containers for development.  It's up to you whether or not to use this feature.
 
 `ssm-vault exec` runs a given command after exposing parameter values as environment variables:
 
