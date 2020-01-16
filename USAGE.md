@@ -19,7 +19,7 @@
 
 ### Homebrew (macOS)
 
-```
+```bash
 $ brew tap k24d/ssm-vault
 $ brew install ssm-vault
 ```
@@ -30,7 +30,7 @@ $ brew install ssm-vault
 
 ### Build from source
 
-```
+```bash
 $ VERSION=`git describe --tags --candidates=1 --dirty`
 $ go build -ldflags="-X main.Version=$VERSION -s -w" -trimpath -o ssm-vault
 ```
@@ -207,7 +207,7 @@ $ echo -n "dbuser" | ssm-vault write /app/dev/DB_USERNAME -s
 
 Use `ssm-vault write -f` to overwrite an existing parameter value:
 
-```
+```bash
 $ ssm-vault write /app/dev/DB_PASSWORD
 Enter secret: ********
 ssm-vault: error: ParameterAlreadyExists: The parameter already exists. To overwrite this value, set the overwrite option in the request to true.
@@ -285,7 +285,7 @@ password=MY-SUPER-SECRET
 
 Template string from stdin:
 
-```
+```bash
 $ ssm-vault render -o ~/.my.cnf <<EOT
 [client]
 user={{aws_ssm_parameter "/app/dev/DB_USERNAME"}}
@@ -295,7 +295,7 @@ EOT
 
 Truncate path prefix by `--path`(or `-p`):
 
-```
+```bash
 $ ssm-vault render -p /app/dev -o ~/.my.cnf <<EOT
 [client]
 user={{aws_ssm_parameter "DB_USERNAME"}}
@@ -309,7 +309,7 @@ EOT
 
 `ssm-vault exec` runs a given command after exposing parameter values as environment variables:
 
-```
+```bash
 # Any symbols in parameter names are converted to "_"
 $ ssm-vault exec -- env | grep DB_
 APP_DEV_DB_PASSWORD=MY-SUPER-SECRET
@@ -323,7 +323,7 @@ DB_USERNAME=dbuser
 
 Use `--safe` if you want to expose only plain text values:
 
-```
+```bash
 $ ssm-vault exec -p /app/dev --safe -- env | grep DB_
 DB_USERNAME=dbuser
 ```
@@ -332,7 +332,7 @@ DB_USERNAME=dbuser
 
 By default, `ssm-vault exec` does not overwrite existing environment variables.  Set `--overwrite`(or `-f`) to change the behavior:
 
-```
+```bash
 $ export DB_USERNAME=newuser
 
 $ ssm-vault read /app/dev/DB_USERNAME
