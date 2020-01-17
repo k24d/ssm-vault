@@ -321,7 +321,7 @@ DB_PASSWORD=MY-SUPER-SECRET
 DB_USERNAME=dbuser
 ```
 
-Use `--safe` if you want to expose only plain text values:
+Use `--safe` if you wish to expose only plain text values:
 
 ```bash
 $ ssm-vault exec -p /app/dev --safe -- env | grep DB_
