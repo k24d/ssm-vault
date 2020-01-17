@@ -170,7 +170,7 @@ COPY ./run.sh /app/runs.sh
 CMD ["/app/run.sh"]
 ```
 
-Within the script, we can generate a configuration file like this:
+Within the script, we can generate a configuration file as follows:
 
 ```bash
 #!/bin/bash
@@ -192,6 +192,16 @@ db_config = {
     'host': os.environ.get('POSTGRES_HOST', 'db'),
     'db': os.environ.get('POSTGRES_DB', 'app'),
 }
+```
+
+### Creating secret files
+
+If you have multiline secret files, such as X.509 private keys, you can create them in your run script:
+
+```bash
+#!/bin/bash
+
+/usr/local/bin/ssm-vault read /app/dev/private_key -o /app/private_key.pem -m 0600
 ```
 
 ### Multiple environments
