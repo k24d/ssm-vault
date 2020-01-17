@@ -2,11 +2,12 @@
 
 SSM Vault is a lightweight tool for using [AWS Systems Manager (SSM) Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html) from CLI.
 
-SSM Vault can be used to store credentials in AWS and retrieve them for development or in production.  It allows you to show stored parameters in tree views, embed parameters in configuration files, and expose parameters as environment variables.
+You can use SSM Vault to store credentials in AWS and retrieve them during development or in production.  It allows you to show parameters in tree views, embed parameters in configuration files, and expose parameters as environment variables.
 
 ## Documentation
 
 - [Usage](USAGE.md)
+- [Docker with SSM Parameter Store](DOCKER.md)
 
 ## Installation
 
@@ -60,3 +61,6 @@ $ ssm-vault exec -p /app/dev -- env | grep DB_
 DB_PASSWORD=MY-SUPER-SECRET
 DB_USERNAME=dbuser
 ```
+
+See "[Usage](USAGE.md)" for details of available commands.  See "[Docker with SSM Parameter Store](DOCKER.md)" for how to use SSM Vault to access secrets from Docker containers during development.
+

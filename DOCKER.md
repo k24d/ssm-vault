@@ -1,12 +1,10 @@
-# Docker secret management
+# Docker with SSM Parameter Store
 
-This document describes how to use SSM Value with Docker and docker-compose during development.
+This document describes how to use SSM Vault from Docker and docker-compose.
 
-## Configuration by environment variables
+## Docker and environment variables
 
-Suppose you are developing a web application using two containers: "db" and "app".
-
-You can create `docker-compose.yml` as follows:
+Suppose you are developing a web application using two containers: "db" and "app".  Your `docker-compose.yml` might look like this:
 
 ```yaml
 version: '3'
@@ -29,12 +27,13 @@ services:
       - POSTGRES_DB=app
 ```
 
-According to [the PostgreSQL Docker image](https://hub.docker.com/_/postgres), we can initialize a DB user and password by settings environment variables `POSTGRES_USER` and `POSTGRES_PASSWORD`.  Since we use the same user and password in db and app, we define identical environment variables for these containers as above.
+According to [the PostgreSQL Docker image](https://hub.docker.com/_/postgres), we can initialize a DB user and password by settings the environment variables `POSTGRES_USER` and `POSTGRES_PASSWORD`.  Since we use the same user and password for db and app, we define identical environment variables for both containers as above.
 
 In our application side, the configuration file might look like this:
-(See [examples/docker/config.py](examples/docker/config.py) for full example.)
 
 ```python
+# config.py
+
 db_config = {
     'user': os.environ['POSTGRES_USER'],
     'password': os.environ['POSTGRES_PASSWORD'],
@@ -45,16 +44,18 @@ db_config = {
 SQLALCHEMY_DATABASE_URI = "postgresql://{user}:{password}@{host}/{db}".format(**db_config)
 ```
 
+(See [examples/docker/config.py](examples/docker/config.py) for full example.)
+
 ### Using .env for environment variables
 
-In this particular example, we don't need to protect our database password, but sometimes we have secrets that we don't want to store in our source code, including `docker-compose.yml`.  So, let's create a `.env` file:
+In this particular example, we don't need to protect our database password because there is no real data.  However, sometimes we have some secrets that cannot to be stored in the repository.  So, let's create a `.env` file, which is loaded by docker-compose automatically:
 
 ```bash
 # .env
 POSTGRES_PASSWORD=my-secret-password
 ```
 
-docker-compose automatically load `.env` and define environment variables.  Now we can modify our `docker-compose.yml` as follows:
+Now we can modify our `docker-compose.yml` as follows:
 
 ```yaml
 version: '3'
@@ -81,13 +82,13 @@ Good!  Now we can safely share the code by excluding `.env` from the repository.
 
 ### Using ssm-vault for environment variables
 
-Let's replace `.env` by `ssm-vault`.  We can store any secrets as well as application parameters in SSM Parameter Store:
+Let's replace `.env` by `ssm-vault`.  We can store any secrets in addition to application parameters in SSM Parameter Store:
 
 ```bash
-$ ssm-vault write /app/dev/POSTGRES_USER -s
+$ ssm-vault write /app/dev/postgres/user -s
 Enter text: dbuser
 
-$ ssm-vault write /app/dev/POSTGRES_PASSWORD
+$ ssm-vault write /app/dev/postgres/password
 Enter secret: ********
 ```
 
@@ -99,18 +100,19 @@ POSTGRES_PASSWORD=my-secret-password
 POSTGRES_USER=dbuser
 ```
 
-Instead of creating `.env`, we can start a container like this:
+Instead of using `.env`, we can start a container as follows:
 
 ```
 $ ssm-vault exec -p /app/dev -- docker-compose run app
 ```
 
-### Using ssm-vault within the container
+In general, `.env` is more suitable for personal access keys of each developer, while SSM Parameter Store is better for shared credentials like 3rd-party service's API keys.
 
-It's tedious to call `ssm-vault exec` every time we start containers.  We could embed `ssm-vault` in the container and use it whenever the container starts.
+### Using ssm-vault from the container
+
+It's tedious to enter `ssm-vault exec` every time we start containers.  Let's embed `ssm-vault` in a container and use it when the container starts.
 
 You can add the following lines to your `Dockerfile` in order to install `ssm-vault`:
-(See [examples/docker/Dockerfile](examples/docker/Dockerfile) for full example.)
 
 ```bash
 # Install ssm-vault
@@ -120,7 +122,9 @@ ADD https://github.com/k24d/ssm-vault/releases/download/$SSM_VAULT_VERSION/ssm-v
 RUN echo "$SSM_VAULT_CHECKSUM /usr/local/bin/ssm-vault" | sha256sum -c && chmod 755 /usr/local/bin/ssm-vault
 ```
 
-Then, you can execute `ssm-vault exec` either by `ENTRYPOINT` or `CMD`:
+(See [examples/docker/Dockerfile](examples/docker/Dockerfile) for full example.)
+
+Then, run `ssm-vault exec` either by `ENTRYPOINT` or `CMD`:
 
 ```bash
 # Run "/usr/local/bin/ssm-vault exec" as the entry point
@@ -132,9 +136,7 @@ or
 CMD ["/usr/local/bin/ssm-vault", "exec", "-p", "/app/dev", "--", "flask", "run"]
 ```
 
-Before starting a container, you have to configure AWS in order to run `ssm-vault` successfully.  I'd recommend that you start a local metadata server by running [aws-vault](https://github.com/99designs/aws-vault) in server mode.  This way you can forget about AWS access keys in your container because a session token is provided by the metedata server in the same way as Amazon EC2 or ECS.
-
-In this case, all you have to do is to start a metadata server at the beginning of day.  Then, your container will start loading secrets from SSM Parameter Store whenever you start a container:
+Before starting a container, you need to set up AWS access keys in order to run `ssm-vault` successfully.  I recommend that you start a local "metadata server" by running [aws-vault](https://github.com/99designs/aws-vault) in server mode.  This way you can forget about AWS access keys in your container because a session token is provided by the metedata server in the same way as Amazon EC2 or ECS:
 
 ```bash
 # Start a metadata server (only once)
@@ -145,10 +147,90 @@ $ aws-vault exec development --server
 $ docker-compose run app
 ```
 
-:warning: Don't forget to set the environment variable `AWS_REGION` in your container.  A metadata server does not provide region information, so you need to specify one explicitly:
+In this case, you start a metadata server at the beginning of day, and your container will start loading secrets from SSM Parameter Store whenever you start a container.
+
+:warning: Don't forget to set the environment variable `AWS_REGION` for your container.  A metadata server does not provide region information, so you need to specify one explicitly:
 
 ```
   app:
     environment:
       - AWS_REGION=ap-northeast-1
+```
+
+## Generating configuration files
+
+It is often said that environment variables are less secure than configuration files.  You can create configuration files in Docker containers by using `ssm-vault render`.
+
+Let's execute a "run script" (`run.sh`) in the container:
+
+```bash
+# Dockerfile
+
+COPY ./run.sh /app/runs.sh
+CMD ["/app/run.sh"]
+```
+
+Within the script, we can generate a configuration file like this:
+
+```bash
+#!/bin/bash
+
+/usr/local/bin/ssm-vault render /app/config.template -p /app/dev -o /app/config.py
+
+export FLASK_APP=/app/app.py
+exec flask run
+```
+
+In the config template file, we can embed parameter values:
+
+```python
+# config.template
+
+db_config = {
+    'user': os.environ.get('POSTGRES_USER', '{{aws_ssm_parameter "postgres/user"}}'),
+    'password': os.environ.get('POSTGRES_PASSWORD', '{{aws_ssm_parameter "postgres/password"}}'),
+    'host': os.environ.get('POSTGRES_HOST', 'db'),
+    'db': os.environ.get('POSTGRES_DB', 'app'),
+}
+```
+
+### Multiple environments
+
+You might have multiple application environments:
+
+```
+% ssm-vault tree
+.
+└── /app/
+    ├── dev/
+    │   ├── postgres/
+    │   │   ├── password🔐 (alias/aws/ssm)
+    │   │   └── user
+    ├── production/
+    │   └── postgres/
+    │       ├── password🔐 (alias/aws/ssm)
+    │       └── user
+    └── staging/
+        └── postgres/
+            ├── password🔐 (alias/aws/ssm)
+            └── user
+```
+
+In this case, you need to select a parameter path depending on the environment:
+
+```bash
+#!/bin/bash
+
+PARAMETER_PATH="/app/${APP_ENV:-dev}"
+
+/usr/local/bin/ssm-vault render /app/config.template -p $PARAMETER_PATH -o /app/config.py
+
+export FLASK_APP=/app/app.py
+exec flask run
+```
+
+Then, switch environments by setting an environment name:
+
+```
+$ docker-compose run -e APP_ENV=staging app
 ```
