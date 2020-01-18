@@ -54,7 +54,7 @@ $ aws-vault exec dev -- terraform init
 
 ## Storing parameter values
 
-Parameters are created by Terraform resource "aws_ssm_parameter".  You can store both plan text values (String) and encrypted values (SecureString):
+Parameters are created by the Terraform resource "aws_ssm_parameter".  You can store both plan text values (String) and encrypted values (SecureString):
 
 ```bash
 # parameters.tf
@@ -120,7 +120,7 @@ resource "aws_db_instance" "db" {
 
 ### Using stored secrets
 
-In many cases, you already have some secrets and cannot generate random passwords.  You don't want to write them in plain text:
+In many cases, you already have some secrets provided by external services, and generating random passwords doesn't make sense.  You don't want to write those secrets in plain text:
 
 ```bash
 # THIS IS NOT SECURE!
@@ -131,7 +131,7 @@ resource "aws_ssm_parameter" "db_password" {
 }
 ```
 
-Instead of using Terraform, I would just use `ssm-vault write` to store secrets:
+I would just use `ssm-vault write` to store secrets:
 
 ```
 $ ssm-vault write /org/app/dev/DB_PASSWORD
@@ -156,4 +156,4 @@ resource "aws_db_instance" "db" {
 }
 ```
 
-In this way, you can avoid storing secrets in your Terraform repository, while keeping parameter names in the code.
+In this way, you can avoid storing secrets in your Terraform repository, while maintaining parameter names in the code.
