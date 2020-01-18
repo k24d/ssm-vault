@@ -24,6 +24,12 @@ $ brew tap k24d/ssm-vault
 $ brew install ssm-vault
 ```
 
+For the latest (unstable) version, install from the master branch:
+
+```
+$ brew install --HEAD ssm-vault
+```
+
 ### Pre-compiled binaries (darwin, freebsd, linux, and windows)
 
 - https://github.com/k24d/ssm-vault/releases
@@ -346,3 +352,5 @@ DB_USERNAME=newuser
 $ ssm-vault exec -f -p /app/dev -- env | grep DB_USERNAME
 DB_USERNAME=dbuser
 ```
+
+For Docker users, "[Docker with SSM Parameter Store](DOCKER.md)" describes how to use SSM Vault from Docker containers.

@@ -7,7 +7,8 @@ You can use SSM Vault to store credentials in AWS and retrieve them during devel
 ## Documentation
 
 - [Usage](USAGE.md)
-- [Docker with SSM Parameter Store](DOCKER.md)
+- [SSM Parameter Store from Docker](DOCKER.md)
+- [SSM Parameter Store from Terraform](TERRAFORM.md)
 
 ## Installation
 
@@ -62,4 +63,8 @@ DB_PASSWORD=MY-SUPER-SECRET
 DB_USERNAME=dbuser
 ```
 
-See "[Usage](USAGE.md)" for details of available commands.  For Docker users, "[Docker with SSM Parameter Store](DOCKER.md)" describes how to use SSM Vault from Docker containers.
+See "[Usage](USAGE.md)" for detailed usage.  For Docker users, "[Docker with SSM Parameter Store](DOCKER.md)" describes how to use SSM Vault from Docker containers.
+
+## Infrastructure as Code
+
+When you organize application parameters and secrets as part of "Infrastructure as Code", I recommend that you use [Terraform](https://www.terraform.io) or similar tools instead of using SSM Vault manually.  "[SSM Parameter Store from Terraform](TERRAFORM.md)" briefly describes how to use Terraform for parameter management.

@@ -1,4 +1,4 @@
-# Docker with SSM Parameter Store
+# SSM Parameter Store from Docker
 
 This document describes how to use SSM Vault from Docker and docker-compose.
 
