@@ -63,7 +63,7 @@ DB_PASSWORD=MY-SUPER-SECRET
 DB_USERNAME=dbuser
 ```
 
-See "[Usage](USAGE.md)" for detailed usage.  For Docker users, "[Docker with SSM Parameter Store](DOCKER.md)" describes how to use SSM Vault from Docker containers.
+See "[Usage](USAGE.md)" for detailed usage.  For Docker users, "[SSM Parameter Store from Docker](DOCKER.md)" describes how to use SSM Vault from Docker containers.
 
 ## Infrastructure as Code
 
