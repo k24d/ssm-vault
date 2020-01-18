@@ -4,8 +4,6 @@
 - [Storing parameter values](#storing-parameter-values)
   - [Using parameter values](#using-parameter-values)
   - [Using stored secrets](#using-stored-secrets)
-- [Best practices](#best-practices)
-  - [ID in the code](#id-in-the-code)
 
 ## Basic configurations
 
