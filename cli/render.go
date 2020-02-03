@@ -7,7 +7,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -41,6 +40,11 @@ func ConfigureRenderCommand(app *kingpin.Application) {
 		StringVar(&input.OutputMode)
 
 	cmd.Action(func(c *kingpin.ParseContext) error {
+		// ensure "/" at the end
+		if input.Path != "" && !strings.HasSuffix(input.Path, "/") {
+			input.Path += "/"
+		}
+
 		app.FatalIfError(RenderCommand(input), "")
 		return nil
 	})
@@ -48,58 +52,28 @@ func ConfigureRenderCommand(app *kingpin.Application) {
 
 func RenderCommand(input RenderCommandInput) error {
 	svc := NewSsmClient()
+	parameters := make(map[string]string, 0)
 
-	var err error
-	var templateName string
-	var templateData []byte
-
-	// read template
-	if input.InputFile != "" {
-		// from input file
-		templateName = input.InputFile
-		templateData, err = ioutil.ReadFile(input.InputFile)
-	} else {
-		// from stdin
-		templateName = "<stdin>"
-		templateData, err = ioutil.ReadAll(os.Stdin)
-	}
+	file, data, err := ReadTemplate(input)
 	if err != nil {
 		return err
 	}
 
-	// path
-	path := input.Path
-	if path != "" && !strings.HasSuffix(path, "/") {
-		path += "/"
-	}
-
-	// build template
-	temp, err := template.New(templateName).Funcs(template.FuncMap{
-		// TODO: use bulk read (GetParameters) for speedup
-		"aws_ssm_parameter": func(name string) (string, error) {
-			if path != "" && !strings.HasPrefix(name, "/") {
-				name = path + name
-			}
-			return GetParameter(svc, name)
-		},
-	}).Parse(string(templateData))
-	if err != nil {
+	if err = ParseTemplate(input, file, data, parameters); err != nil {
 		return err
 	}
 
-	// render
-	if input.OutputFile != nil {
-		err = temp.Execute(input.OutputFile, nil)
-	} else {
-		err = temp.Execute(os.Stdout, nil)
-	}
-	if err != nil {
+	if err = GetParameters(svc, parameters); err != nil {
 		return err
 	}
 
+	if err = RenderTemplate(input, file, data, parameters); err != nil {
+		return err
+	}
+
+	// file mode
 	if input.OutputFile != nil && input.OutputMode != "" {
-		mode, err := strconv.ParseInt(input.OutputMode, 8, 16)
-		if err == nil {
+		if mode, err := strconv.ParseInt(input.OutputMode, 8, 16); err == nil {
 			err = input.OutputFile.Chmod(os.FileMode(mode))
 		}
 	}
@@ -110,22 +84,98 @@ func RenderCommand(input RenderCommandInput) error {
 	return nil
 }
 
-func GetParameter(svc *ssm.SSM, name string) (string, error) {
-	flag := true
-	params := &ssm.GetParameterInput{
-		Name: &name,
-		WithDecryption: &flag,
+func ReadTemplate(input RenderCommandInput) (string, []byte, error) {
+	if input.InputFile != "" {
+		// from input file
+		name := input.InputFile
+		data, err := ioutil.ReadFile(input.InputFile)
+		return name, data, err
+	} else {
+		// from stdin
+		name := "<stdin>"
+		data, err := ioutil.ReadAll(os.Stdin)
+		return name, data, err
 	}
-	result, err := svc.GetParameter(params)
-	if err != nil {
-		// ignore ParameterNotFound error if -f is specified
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() == ssm.ErrCodeParameterNotFound {
-				return "", nil
+}
+
+func ParseTemplate(input RenderCommandInput, file string, data []byte, parameters map[string]string) error {
+	t, err := template.New(file).Funcs(template.FuncMap{
+		"aws_ssm_parameter": func(name string) string {
+			if !strings.HasPrefix(name, "/") {
+				name = input.Path + name
 			}
-		}
-		return "", err
+			if _, ok := parameters[name]; !ok {
+				parameters[name] = ""
+			}
+			return ""
+		},
+	}).Parse(string(data))
+
+	if err == nil {
+		err = t.Execute(ioutil.Discard, nil)
 	}
 
-	return *result.Parameter.Value, nil
+	return err
+}
+
+func RenderTemplate(input RenderCommandInput, file string, data []byte, parameters map[string]string) error {
+	t, err := template.New(file).Funcs(template.FuncMap{
+		"aws_ssm_parameter": func(name string) string {
+			if !strings.HasPrefix(name, "/") {
+				name = input.Path + name
+			}
+			return parameters[name]
+		},
+	}).Parse(string(data))
+
+	if err == nil {
+		if input.OutputFile != nil {
+			err = t.Execute(input.OutputFile, nil)
+		} else {
+			err = t.Execute(os.Stdout, nil)
+		}
+	}
+
+	return err
+}
+
+func GetParameters(svc *ssm.SSM, parameters map[string]string) error {
+	if len(parameters) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0)
+	for k := range parameters {
+		keys = append(keys, k)
+	}
+
+	names := make([]*string, len(keys))
+	for i, _ := range keys {
+		names[i] = &keys[i]
+	}
+
+	for i := 0; i < len(names); i += 10 {
+		flag := true
+		params := &ssm.GetParametersInput{
+			Names: names[i : Min(i + 10, len(names))],
+			WithDecryption: &flag,
+		}
+		result, err := svc.GetParameters(params)
+		if err != nil {
+			return err
+		}
+
+		for _, v := range result.Parameters {
+			parameters[*v.Name] = *v.Value
+		}
+	}
+
+	return nil
+}
+
+func Min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
